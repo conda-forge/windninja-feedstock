@@ -9,7 +9,7 @@ Package license: MIT
 
 Summary: A diagnostic wind model developed for use in wildland fire modeling. 
 
-Documentation: https://ninjastorm.firelab.org/windninja/tutorials/
+Documentation: https://weather.firelab.org/windninja/tutorials/
 
 WindNinja is a diagnostic wind model developed for use in wildland fire modeling.
 
