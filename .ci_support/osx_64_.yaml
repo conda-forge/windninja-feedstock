@@ -13,11 +13,11 @@ channel_targets:
 cxx_compiler:
 - clangxx
 cxx_compiler_version:
-- '18'
+- '19'
 libboost_devel:
 - '1.86'
 libgdal:
-- '3.10'
+- '3.11'
 libnetcdf:
 - 4.9.2
 macos_machine:
