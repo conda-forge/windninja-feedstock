@@ -1,0 +1,22 @@
+From 4a96b7843bdd923bea08149d294099a3b875e3ba Mon Sep 17 00:00:00 2001
+From: Chris Marsh <chrismarsh.c2@gmail.com>
+Date: Fri, 8 Aug 2025 22:20:10 -0600
+Subject: [PATCH] switch away from now deprecated CPLIsNan
+
+---
+ src/ninja/ascii_grid.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/ninja/ascii_grid.cpp b/src/ninja/ascii_grid.cpp
+index 02db14b0..82d8bda6 100644
+--- a/src/ninja/ascii_grid.cpp
++++ b/src/ninja/ascii_grid.cpp
+@@ -27,7 +27,7 @@ template<> inline short epsClr<short>() { return 1; }
+ 
+ template <class T>
+ inline bool cplIsNan(T t) {
+-    return CPLIsNan((double)t); // we need to disambiguate
++    return std::isnan(static_cast<double>(t)); // we need to disambiguate
+ }
+ 
+ 

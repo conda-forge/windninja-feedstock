@@ -8,6 +8,8 @@ package:
 source:
   url: https://github.com/firelab/windninja/archive/refs/tags/{{ version }}.tar.gz
   sha256: c9b9af0c9905d8a0792ccf9db9958a0e3b201f653336fd59dbc7f5679cb79881
+  patches:
+    - patch-CPLIsNan.patch
 
 build:
   number: 1
