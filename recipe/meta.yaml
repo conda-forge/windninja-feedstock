@@ -10,6 +10,7 @@ source:
   sha256: c6a0bf3e79a7dca875f9c1bcec6b3b625192bdd6cebcfdfb1fc6c30def4bea63
   patches:
     - patch-CPLIsNan.patch
+    - patch-CPLCreateJoinableThread.patch
 
 build:
   number: 0
