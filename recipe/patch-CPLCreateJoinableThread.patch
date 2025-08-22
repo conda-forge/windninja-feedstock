@@ -1,0 +1,31 @@
+From f849d4b11ec2a8e30915114b02211b7b57be0e2c Mon Sep 17 00:00:00 2001
+From: Chris Marsh <chrismarsh.c2@gmail.com>
+Date: Fri, 8 Aug 2025 13:20:05 -0600
+Subject: [PATCH] update type
+
+---
+ src/ninja/gcp_wx_init.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/ninja/gcp_wx_init.cpp b/src/ninja/gcp_wx_init.cpp
+index cc1384f7958d20dc62fb118cc62db1a1376843f5..0f767cf676956686a5df724905861a7ffdc30b70 100644
+--- a/src/ninja/gcp_wx_init.cpp
++++ b/src/ninja/gcp_wx_init.cpp
+@@ -282,7 +282,7 @@ std::string GCPWxModel::fetchForecast(std::string demFile, int nhours)
+ 
+     // try multi threaded download
+     const int MAX_CONCURRENT = 4;
+-    std::vector<void*> threadHandles;
++    std::vector<CPLJoinableThread*> threadHandles;
+ 
+     int i = 0;
+     for (size_t dt = 0; dt < validTimes.size(); ++dt)
+@@ -299,7 +299,7 @@ std::string GCPWxModel::fetchForecast(std::string demFile, int nhours)
+         params->options = options;
+         params->i = i;
+ 
+-        void* handle = CPLCreateJoinableThread(ThreadFunc, params);
++        CPLJoinableThread* handle = CPLCreateJoinableThread(ThreadFunc, params);
+         if (!handle) {
+             CPLDebug("GCP", "Failed to create thread");
+             delete params;
