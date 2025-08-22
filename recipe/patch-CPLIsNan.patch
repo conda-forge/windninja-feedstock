@@ -1,14 +1,14 @@
 From 4a96b7843bdd923bea08149d294099a3b875e3ba Mon Sep 17 00:00:00 2001
 From: Chris Marsh <chrismarsh.c2@gmail.com>
 Date: Fri, 8 Aug 2025 22:20:10 -0600
-Subject: [PATCH] switch away from now deprecated CPLIsNan
+Subject: [PATCH 1/3] switch away from now deprecated CPLIsNan
 
 ---
  src/ninja/ascii_grid.cpp | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/src/ninja/ascii_grid.cpp b/src/ninja/ascii_grid.cpp
-index 02db14b0..82d8bda6 100644
+index 02db14b06dbc9e5927d199fc441f68d16271f1da..82d8bda602e5e24debdfdddc0234828dccc5acc2 100644
 --- a/src/ninja/ascii_grid.cpp
 +++ b/src/ninja/ascii_grid.cpp
 @@ -27,7 +27,7 @@ template<> inline short epsClr<short>() { return 1; }
@@ -20,3 +20,1083 @@ index 02db14b0..82d8bda6 100644
  }
  
  
+
+From 465021fa83d1033d54a5a9fd3642409e6d2a9bf7 Mon Sep 17 00:00:00 2001
+From: Chris Marsh <chrismarsh.c2@gmail.com>
+Date: Wed, 20 Aug 2025 17:15:55 -0600
+Subject: [PATCH 2/3] add win32 guard as suggested
+
+---
+ src/ninja/ascii_grid.cpp | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/ninja/ascii_grid.cpp b/src/ninja/ascii_grid.cpp
+index 82d8bda602e5e24debdfdddc0234828dccc5acc2..0c31afd304769414395a8f8ea5157517c0e21b41 100644
+--- a/src/ninja/ascii_grid.cpp
++++ b/src/ninja/ascii_grid.cpp
+@@ -26,11 +26,15 @@ template<> inline int epsClr<int>() { return 1; }
+ template<> inline short epsClr<short>() { return 1; }
+ 
+ template <class T>
+-inline bool cplIsNan(T t) {
+-    return std::isnan(static_cast<double>(t)); // we need to disambiguate
++inline bool cplIsNan(T t)
++{
++    #ifdef WIN32
++        return CPLIsNan((double)t); // we need to disambiguate
++    #else
++        return std::isnan(static_cast<double>(t)); // we need to disambiguate
++    #endif
+ }
+ 
+-
+ /**
+  * @brief Create an empty grid
+  * Create an empty grid with no header data and no data
+
+From 6247654535f095f765392982de6fd6ffa602e85a Mon Sep 17 00:00:00 2001
+From: Chris Marsh <chrismarsh.c2@gmail.com>
+Date: Thu, 21 Aug 2025 14:07:49 -0600
+Subject: [PATCH 3/3] replace CPLIsNan across entire code base
+
+---
+ src/hrrr_to_kmz/hrrr_to_kmz.cpp               | 11 +++++------
+ src/ninja/ascii_grid.cpp                      | 10 +---------
+ src/ninja/ascii_grid.h                        |  2 ++
+ src/ninja/cplIsNan.h                          | 15 +++++++++++++++
+ src/ninja/genericSurfInitialization.cpp       | 12 ++++++------
+ src/ninja/ncepGfsSurfInitialization.cpp       | 12 ++++++------
+ src/ninja/ncepGfsSurfInitialization.h         |  2 +-
+ src/ninja/ncepHrrrSurfInitialization.cpp      |  8 ++++----
+ src/ninja/ncepHrrrSurfInitialization.h        |  2 +-
+ src/ninja/ncepNamAlaskaSurfInitialization.cpp | 12 ++++++------
+ src/ninja/ncepNamAlaskaSurfInitialization.h   |  2 +-
+ src/ninja/ncepNamGrib2SurfInitialization.cpp  |  8 ++++----
+ src/ninja/ncepNamGrib2SurfInitialization.h    |  2 +-
+ src/ninja/ncepNamSurfInitialization.cpp       | 12 ++++++------
+ src/ninja/ncepNamSurfInitialization.h         |  1 +
+ src/ninja/ncepNdfdInitialization.cpp          | 12 ++++++------
+ src/ninja/ncepNdfdInitialization.h            |  1 +
+ src/ninja/ncepRapSurfInitialization.cpp       | 12 ++++++------
+ src/ninja/ncepRapSurfInitialization.h         |  1 +
+ src/ninja/nomads_wx_init.cpp                  | 17 ++++++++---------
+ src/ninja/nomads_wx_init.h                    |  2 +-
+ src/ninja/pointInitialization.cpp             |  7 +++----
+ src/ninja/pointInitialization.h               |  1 +
+ src/ninja/wrf3dInitialization.cpp             |  2 +-
+ src/ninja/wrf3dInitialization.h               |  1 +
+ src/ninja/wrfSurfInitialization.cpp           | 15 +++++++--------
+ src/ninja/wrfSurfInitialization.h             |  2 +-
+ src/ninja/wxStation.cpp                       | 15 +++++++--------
+ src/ninja/wxStation.h                         |  1 +
+ src/wrf_to_kmz/wrf_to_kmz.cpp                 | 13 +++++++------
+ 30 files changed, 112 insertions(+), 101 deletions(-)
+ create mode 100644 src/ninja/cplIsNan.h
+
+diff --git a/src/hrrr_to_kmz/hrrr_to_kmz.cpp b/src/hrrr_to_kmz/hrrr_to_kmz.cpp
+index 903b0df0b7b6e954832ba4ac6477317927a2a062..fdd3fb8c4f222a8706f64beed327bfb5ba139649 100644
+--- a/src/hrrr_to_kmz/hrrr_to_kmz.cpp
++++ b/src/hrrr_to_kmz/hrrr_to_kmz.cpp
+@@ -37,6 +37,7 @@
+ 
+ #include "ninjaUnits.h"
+ #include "KmlVector.h"
++#include "cplIsNan.h"
+ 
+ 
+ 
+@@ -431,7 +432,7 @@ void setSurfaceGrids( const std::string &wxModelFileName, const int &timeBandIdx
+     for( unsigned int i = 0; i < varList.size(); i++ ) {
+         if( varList[i] == "2t" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, airGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 airGrid.set_noDataValue( -9999.0 );
+                 airGrid.replaceNan( -9999.0 );
+             }
+@@ -442,21 +443,21 @@ void setSurfaceGrids( const std::string &wxModelFileName, const int &timeBandIdx
+         }
+         else if( varList[i] == "10v" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, vGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 vGrid.set_noDataValue( -9999.0 );
+                 vGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "10u" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, uGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 uGrid.set_noDataValue( -9999.0 );
+                 uGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "tcc" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, cloudGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 cloudGrid.set_noDataValue( -9999.0 );
+                 cloudGrid.replaceNan( -9999.0 );
+             }
+@@ -860,5 +861,3 @@ int main( int argc, char* argv[] )
+ 
+ 
+ 
+-
+-
+diff --git a/src/ninja/ascii_grid.cpp b/src/ninja/ascii_grid.cpp
+index 0c31afd304769414395a8f8ea5157517c0e21b41..5cedcf24607dc054bff48c974503a95135f5dc47 100644
+--- a/src/ninja/ascii_grid.cpp
++++ b/src/ninja/ascii_grid.cpp
+@@ -25,15 +25,7 @@ template<> inline double epsClr<double>() { return 0.001; }
+ template<> inline int epsClr<int>() { return 1; }
+ template<> inline short epsClr<short>() { return 1; }
+ 
+-template <class T>
+-inline bool cplIsNan(T t)
+-{
+-    #ifdef WIN32
+-        return CPLIsNan((double)t); // we need to disambiguate
+-    #else
+-        return std::isnan(static_cast<double>(t)); // we need to disambiguate
+-    #endif
+-}
++
+ 
+ /**
+  * @brief Create an empty grid
+diff --git a/src/ninja/ascii_grid.h b/src/ninja/ascii_grid.h
+index b4f6b14c1c6dcbbce6398c79c589cce85d41327f..34f5f3ae59ac7eee439caef58991e2bf9ca22620 100644
+--- a/src/ninja/ascii_grid.h
++++ b/src/ninja/ascii_grid.h
+@@ -61,6 +61,8 @@
+ #include "EasyBMP_DataStructures.h"  //nsw
+ #include "EasyBMP_Geometry.h"  //nsw
+ 
++#include "cplIsNan.h"
++
+ 
+ /**
+  * Class that stores 2-dimensional arrays of data for mostly spatial
+diff --git a/src/ninja/cplIsNan.h b/src/ninja/cplIsNan.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..619650f189ebd6898cb3351f4a0537e7d3bb6bd1
+--- /dev/null
++++ b/src/ninja/cplIsNan.h
+@@ -0,0 +1,15 @@
++#ifndef CPLISNAN_H
++#define CPLISNAN_H
++
++#include <cmath>
++
++template <class T>
++inline bool cplIsNan(T t)
++{
++#ifdef WIN32
++  return CPLIsNan((double)t); // we need to disambiguate
++#else
++  return std::isnan(static_cast<double>(t)); // we need to disambiguate
++#endif
++}
++#endif
+\ No newline at end of file
+diff --git a/src/ninja/genericSurfInitialization.cpp b/src/ninja/genericSurfInitialization.cpp
+index 8be120bff05589985eee0bc2c7ae04d8398a8dea..aafa04655cad4bfde494a6bb1468447da001d76f 100644
+--- a/src/ninja/genericSurfInitialization.cpp
++++ b/src/ninja/genericSurfInitialization.cpp
+@@ -207,7 +207,7 @@ void genericSurfInitialization::checkForValidData()
+             else
+             {
+                 noDataValueExists = true;
+-                noDataIsNan = CPLIsNan(dfNoData);
++                noDataIsNan = cplIsNan(dfNoData);
+             }
+ 
+             //set the data
+@@ -221,7 +221,7 @@ void genericSurfInitialization::checkForValidData()
+                 {
+                     if(noDataIsNan)
+                     {
+-                        if(CPLIsNan(padfScanline[k]))
++                        if(cplIsNan(padfScanline[k]))
+                             throw badForecastFile("Forecast file contains no_data values.");
+                     }else
+                     {
+@@ -472,28 +472,28 @@ void genericSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+ 
+         if( varList[i] == "Temperature_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, airGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         airGrid.set_noDataValue(-9999.0);
+         airGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "V-component_of_wind_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, vGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         vGrid.set_noDataValue(-9999.0);
+         vGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "U-component_of_wind_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, uGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         uGrid.set_noDataValue(-9999.0);
+         uGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "Total_cloud_cover" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, cloudGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         cloudGrid.set_noDataValue(-9999.0);
+         cloudGrid.replaceNan( -9999.0 );
+         }
+diff --git a/src/ninja/ncepGfsSurfInitialization.cpp b/src/ninja/ncepGfsSurfInitialization.cpp
+index dbd7caa6708a4c4b42f4dacf5aeda46caec899d1..57eb353e5890a92de8275afcbe2265165956389f 100644
+--- a/src/ninja/ncepGfsSurfInitialization.cpp
++++ b/src/ninja/ncepGfsSurfInitialization.cpp
+@@ -217,7 +217,7 @@ void ncepGfsSurfInitialization::checkForValidData()
+             else
+             {
+                 noDataValueExists = true;
+-                noDataIsNan = CPLIsNan(dfNoData);
++                noDataIsNan = cplIsNan(dfNoData);
+             }
+ 
+             //set the data
+@@ -231,7 +231,7 @@ void ncepGfsSurfInitialization::checkForValidData()
+                 {
+                     if(noDataIsNan)
+                     {
+-                        if(CPLIsNan(padfScanline[k]))
++                        if(cplIsNan(padfScanline[k]))
+                             throw badForecastFile("Forecast file contains no_data values.");
+                     }else
+                     {
+@@ -557,7 +557,7 @@ void ncepGfsSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         if( varList[i] == "Temperature_height_above_ground" ) {
+             tempBandNum = (bandNum * 3) - 2;  // adjust for height dimension (3)
+             GDAL2AsciiGrid( wrpDS, tempBandNum, airGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 airGrid.set_noDataValue(-9999.0);
+                 airGrid.replaceNan( -9999.0 );
+             }
+@@ -565,7 +565,7 @@ void ncepGfsSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         else if( varList[i] == "v-component_of_wind_height_above_ground" ) {
+             vBandNum = (bandNum * 3) - 2;  // adjust for height dimension (3)
+             GDAL2AsciiGrid( wrpDS, vBandNum, vGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 vGrid.set_noDataValue(-9999.0);
+                 vGrid.replaceNan( -9999.0 );
+             }
+@@ -573,7 +573,7 @@ void ncepGfsSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         else if( varList[i] == "u-component_of_wind_height_above_ground" ) {
+             uBandNum = (bandNum * 3) - 2;  //adjust for height dimension (3)
+             GDAL2AsciiGrid( wrpDS, uBandNum, uGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 uGrid.set_noDataValue(-9999.0);
+                 uGrid.replaceNan( -9999.0 );
+                 //TEST FOR SOUTHERN HEMISPHERE WARP ISSUE.
+@@ -584,7 +584,7 @@ void ncepGfsSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         }
+         else if( varList[i] == "Total_cloud_cover_convective_cloud" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, cloudGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 cloudGrid.set_noDataValue(-9999.0);
+                 cloudGrid.replaceNan( -9999.0 );
+             }
+diff --git a/src/ninja/ncepGfsSurfInitialization.h b/src/ninja/ncepGfsSurfInitialization.h
+index bbd113b010944fca78831ddd970bef851b41f277..04e65376b9f0ede636f38a760c1e7736aa95077d 100644
+--- a/src/ninja/ncepGfsSurfInitialization.h
++++ b/src/ninja/ncepGfsSurfInitialization.h
+@@ -31,6 +31,7 @@
+ #define NCEP_GFS_SURFACE_INITIALIZATION_H
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from an NCEP GFS forecast file.
+@@ -67,4 +68,3 @@ class ncepGfsSurfInitialization : public wxModelInitialization
+ };
+ 
+ #endif //NCEP_GFS_SURFACE_INITIALIZATION_H
+-
+diff --git a/src/ninja/ncepHrrrSurfInitialization.cpp b/src/ninja/ncepHrrrSurfInitialization.cpp
+index ccb24fccb8ef0703f0f6443058a7a2580c440fb0..ccc57ce604621a82ddde2c2115dbd43ea9a9bf2e 100644
+--- a/src/ninja/ncepHrrrSurfInitialization.cpp
++++ b/src/ninja/ncepHrrrSurfInitialization.cpp
+@@ -374,7 +374,7 @@ void ncepHrrrSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         if( varList[i] == "2t" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, airGrid );
+ 
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 airGrid.set_noDataValue( -9999.0 );
+                 airGrid.replaceNan( -9999.0 );
+             }
+@@ -385,21 +385,21 @@ void ncepHrrrSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         }
+         else if( varList[i] == "10v" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, vGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 vGrid.set_noDataValue( -9999.0 );
+                 vGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "10u" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, uGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 uGrid.set_noDataValue( -9999.0 );
+                 uGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "tcc" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, cloudGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 cloudGrid.set_noDataValue( -9999.0 );
+                 cloudGrid.replaceNan( -9999.0 );
+             }
+diff --git a/src/ninja/ncepHrrrSurfInitialization.h b/src/ninja/ncepHrrrSurfInitialization.h
+index 93feb36b134c5c35252a4b40f8e0176b0a28c8ac..ade15c1c1a0062f720bda9883633c5f0fe8d1cb6 100644
+--- a/src/ninja/ncepHrrrSurfInitialization.h
++++ b/src/ninja/ncepHrrrSurfInitialization.h
+@@ -31,6 +31,7 @@
+ #define NCEP_HRRR_SURFACE_INITIALIZATION_H
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from an NCEP HRRR Surface forecast file
+@@ -69,4 +70,3 @@ class ncepHrrrSurfInitialization : public wxModelInitialization
+ };
+ 
+ #endif //NCEP_HRRR_SURFACE_INITIALIZATION_H
+-
+diff --git a/src/ninja/ncepNamAlaskaSurfInitialization.cpp b/src/ninja/ncepNamAlaskaSurfInitialization.cpp
+index c7302c3a904662f3c0ec743bb8cf2942bd44b080..1d44a47d8c1cbc2bd25591011e91a6938a00bee9 100644
+--- a/src/ninja/ncepNamAlaskaSurfInitialization.cpp
++++ b/src/ninja/ncepNamAlaskaSurfInitialization.cpp
+@@ -200,7 +200,7 @@ void ncepNamAlaskaSurfInitialization::checkForValidData()
+             else
+             {
+                 noDataValueExists = true;
+-                noDataIsNan = CPLIsNan(dfNoData);
++                noDataIsNan = cplIsNan(dfNoData);
+             }
+ 
+             //set the data
+@@ -214,7 +214,7 @@ void ncepNamAlaskaSurfInitialization::checkForValidData()
+                 {
+                     if(noDataIsNan)
+                     {
+-                        if(CPLIsNan(padfScanline[k]))
++                        if(cplIsNan(padfScanline[k]))
+                             throw badForecastFile("Forecast file contains no_data values.");
+                     }else
+                     {
+@@ -522,28 +522,28 @@ void ncepNamAlaskaSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         }
+     if( varList[i] == "Temperature_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, airGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         airGrid.set_noDataValue(-9999.0);
+         airGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "v-component_of_wind_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, vGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         vGrid.set_noDataValue(-9999.0);
+         vGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "u-component_of_wind_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, uGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         uGrid.set_noDataValue(-9999.0);
+         uGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "Total_cloud_cover_entire_atmosphere_single_layer" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, cloudGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         cloudGrid.set_noDataValue(-9999.0);
+         cloudGrid.replaceNan( -9999.0 );
+         }
+diff --git a/src/ninja/ncepNamAlaskaSurfInitialization.h b/src/ninja/ncepNamAlaskaSurfInitialization.h
+index 782af1ae4c34ed17db3e39eca3f9cfad238dddd2..bb7f46ddfd3653e6a9625258035ac91b510b9325 100644
+--- a/src/ninja/ncepNamAlaskaSurfInitialization.h
++++ b/src/ninja/ncepNamAlaskaSurfInitialization.h
+@@ -31,6 +31,7 @@
+ #define NCEP_NAM_ALASKA_SURF_INITIALIZATION_H
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from an NCEP NAM Alaska Surface forecast file.
+@@ -68,4 +69,3 @@ class ncepNamAlaskaSurfInitialization : public wxModelInitialization
+ 
+ #endif //NCEP_NAM_ALASKA_SURF_INITIALIZATION_H
+ 
+-
+diff --git a/src/ninja/ncepNamGrib2SurfInitialization.cpp b/src/ninja/ncepNamGrib2SurfInitialization.cpp
+index 683dbd753705226e0dbd44fcf109f5cdbd2b146b..1872925639ddb96ff166836113c2b24bcb01997d 100644
+--- a/src/ninja/ncepNamGrib2SurfInitialization.cpp
++++ b/src/ninja/ncepNamGrib2SurfInitialization.cpp
+@@ -290,28 +290,28 @@ void ncepNamGrib2SurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+     for( unsigned int i = 0; i < varList.size(); i++ ) {
+         if( varList[i] == "2t" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, airGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 airGrid.set_noDataValue( -9999.0 );
+                 airGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "10v" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, vGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 vGrid.set_noDataValue( -9999.0 );
+                 vGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "10u" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, uGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 uGrid.set_noDataValue( -9999.0 );
+                 uGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "tcc" ) {
+             GDAL2AsciiGrid( wrpDS, i+1, cloudGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 cloudGrid.set_noDataValue( -9999.0 );
+                 cloudGrid.replaceNan( -9999.0 );
+             }
+diff --git a/src/ninja/ncepNamGrib2SurfInitialization.h b/src/ninja/ncepNamGrib2SurfInitialization.h
+index 0e613dd3e6d9cb1b38da62f4a2b24ad578291947..ea80e849d9e1cb82ff5aef12b1cb40c7ff459243 100644
+--- a/src/ninja/ncepNamGrib2SurfInitialization.h
++++ b/src/ninja/ncepNamGrib2SurfInitialization.h
+@@ -31,6 +31,7 @@
+ #define NCEP_NAM_GRIB2SURF_INITIALIZATION_H
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from an NCEP NAM Surface forecast file
+@@ -73,4 +74,3 @@ class ncepNamGrib2SurfInitialization : public wxModelInitialization
+ #endif //NCEP_NAM_GRIB2SURF_INITIALIZATION_H
+ 
+ 
+-
+diff --git a/src/ninja/ncepNamSurfInitialization.cpp b/src/ninja/ncepNamSurfInitialization.cpp
+index fe307725b4ccd0e188c5daa0d3b43f84cb1232d9..4f7f2b24b6db176793af7051973fe4ca0e18b372 100644
+--- a/src/ninja/ncepNamSurfInitialization.cpp
++++ b/src/ninja/ncepNamSurfInitialization.cpp
+@@ -200,7 +200,7 @@ void ncepNamSurfInitialization::checkForValidData()
+             else
+             {
+                 noDataValueExists = true;
+-                noDataIsNan = CPLIsNan(dfNoData);
++                noDataIsNan = cplIsNan(dfNoData);
+             }
+ 
+             //set the data
+@@ -214,7 +214,7 @@ void ncepNamSurfInitialization::checkForValidData()
+                 {
+                     if(noDataIsNan)
+                     {
+-                        if(CPLIsNan(padfScanline[k]))
++                        if(cplIsNan(padfScanline[k]))
+                             throw badForecastFile("Forecast file contains no_data values.");
+                     }else
+                     {
+@@ -526,28 +526,28 @@ void ncepNamSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+ 
+         if( varList[i] == "Temperature_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, airGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         airGrid.set_noDataValue(-9999.0);
+         airGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "v-component_of_wind_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, vGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         vGrid.set_noDataValue(-9999.0);
+         vGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "u-component_of_wind_height_above_ground" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, uGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         uGrid.set_noDataValue(-9999.0);
+         uGrid.replaceNan( -9999.0 );
+         }
+     }
+     else if( varList[i] == "Total_cloud_cover_entire_atmosphere_single_layer" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, cloudGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         cloudGrid.set_noDataValue(-9999.0);
+         cloudGrid.replaceNan( -9999.0 );
+         }
+diff --git a/src/ninja/ncepNamSurfInitialization.h b/src/ninja/ncepNamSurfInitialization.h
+index 393326935bb672cad95e88cacccd7b65b39730db..9d3e71d37f543352ac4e55573c5736cdd2e00fbb 100644
+--- a/src/ninja/ncepNamSurfInitialization.h
++++ b/src/ninja/ncepNamSurfInitialization.h
+@@ -30,6 +30,7 @@
+ #define NCEP_NAM_SURF_INITIALIZATION_H
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from an NCEP NAM Surface forecast file.
+diff --git a/src/ninja/ncepNdfdInitialization.cpp b/src/ninja/ncepNdfdInitialization.cpp
+index 29fc41664dd7b0ca0922d893b3a3a2ed5849a674..a722f49087b0ad5b8b7ffb5558c6bb6703218847 100644
+--- a/src/ninja/ncepNdfdInitialization.cpp
++++ b/src/ninja/ncepNdfdInitialization.cpp
+@@ -244,7 +244,7 @@ void ncepNdfdInitialization::checkForValidData()
+             else
+             {
+                 noDataValueExists = true;
+-                noDataIsNan = CPLIsNan(dfNoData);
++                noDataIsNan = cplIsNan(dfNoData);
+             }
+ 
+             //set the data
+@@ -258,7 +258,7 @@ void ncepNdfdInitialization::checkForValidData()
+                 {
+                     if(noDataIsNan)
+                     {
+-                        if(CPLIsNan(padfScanline[k]))
++                        if(cplIsNan(padfScanline[k]))
+                             throw badForecastFile("Forecast file contains no_data values.");
+                     }else
+                     {
+@@ -682,7 +682,7 @@ void ncepNdfdInitialization::setSurfaceGrids(  WindNinjaInputs &input,
+         //                GDAL2AsciiGrid( wrpDS, bandNumTempLuck/2, airGrid );
+         //        }
+         //    }
+-        //if( CPLIsNan( dfNoData ) ) {
++        //if( cplIsNan( dfNoData ) ) {
+         //airHighGrid.set_noDataValue(-9999.0);
+         //airHighGrid.replaceNan( -9999.0 );
+         //airLowGrid.set_noDataValue(-9999.0);
+@@ -721,7 +721,7 @@ void ncepNdfdInitialization::setSurfaceGrids(  WindNinjaInputs &input,
+         //    }
+ 
+         ///* fix no data in the air high, low, and regular grid */
+-        //if( CPLIsNan( dfNoData ) ) {
++        //if( cplIsNan( dfNoData ) ) {
+         //airHighGrid.set_noDataValue(-9999.0);
+         //airHighGrid.replaceNan( -9999.0 );
+         //airLowGrid.set_noDataValue(-9999.0);
+@@ -734,7 +734,7 @@ void ncepNdfdInitialization::setSurfaceGrids(  WindNinjaInputs &input,
+         if(varList[i] == "Total_cloud_cover_entire_atmosphere_single_layer_layer")
+         {
+             GDAL2AsciiGrid( wrpDS, bandNum, cloudGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         cloudGrid.set_noDataValue(-9999.0);
+         cloudGrid.replaceNan( -9999.0 );
+         }
+@@ -743,7 +743,7 @@ void ncepNdfdInitialization::setSurfaceGrids(  WindNinjaInputs &input,
+         }else if(varList[i] == "Wind_direction_from_which_blowing_height_above_ground")
+         {
+             GDAL2AsciiGrid( wrpDS, bandNum, directionGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         directionGrid.set_noDataValue(-9999.0);
+         directionGrid.replaceNan( -9999.0 );
+         }
+diff --git a/src/ninja/ncepNdfdInitialization.h b/src/ninja/ncepNdfdInitialization.h
+index 0bfd57b612199f7180ad9a46102aa3d6c26d04de..1c92fdcea87a16472b9decfdf93edba218712b50 100644
+--- a/src/ninja/ncepNdfdInitialization.h
++++ b/src/ninja/ncepNdfdInitialization.h
+@@ -31,6 +31,7 @@
+ #define NCEP_NDFD_INITILIZATION_H 
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from an NCEP NDFD forecast file.
+diff --git a/src/ninja/ncepRapSurfInitialization.cpp b/src/ninja/ncepRapSurfInitialization.cpp
+index 67a827117f70b8557b21eaac67db341ac2b1cf02..19b5348a6c5106418bb24fe2bd12ea337f78b395 100644
+--- a/src/ninja/ncepRapSurfInitialization.cpp
++++ b/src/ninja/ncepRapSurfInitialization.cpp
+@@ -202,7 +202,7 @@ void ncepRapSurfInitialization::checkForValidData()
+                 else
+                 {
+                     noDataValueExists = true;
+-                    noDataIsNan = CPLIsNan(dfNoData);
++                    noDataIsNan = cplIsNan(dfNoData);
+                 }
+ 
+                 //set the data
+@@ -221,7 +221,7 @@ void ncepRapSurfInitialization::checkForValidData()
+                     {
+                         if(noDataIsNan)
+                         {
+-                            if(CPLIsNan(padfScanline[k]))
++                            if(cplIsNan(padfScanline[k]))
+                                 throw badForecastFile("Forecast file contains no_data values.");
+                         }else
+                         {
+@@ -504,28 +504,28 @@ void ncepRapSurfInitialization::setSurfaceGrids(  WindNinjaInputs &input,
+ 
+         if( varList[i] == "Temperature_height_above_ground" ) {
+           GDAL2AsciiGrid( wrpDS, bandNum, airGrid );
+-          if( CPLIsNan( dfNoData ) ) {
++          if( cplIsNan( dfNoData ) ) {
+               airGrid.set_noDataValue(-9999.0);
+               airGrid.replaceNan( -9999.0 );
+           }
+         }
+         else if( varList[i] == "v-component_of_wind_height_above_ground" ) {
+           GDAL2AsciiGrid( wrpDS, bandNum, vGrid );
+-          if( CPLIsNan( dfNoData ) ) {
++          if( cplIsNan( dfNoData ) ) {
+               vGrid.set_noDataValue(-9999.0);
+               vGrid.replaceNan( -9999.0 );
+           }
+         }
+         else if( varList[i] == "u-component_of_wind_height_above_ground" ) {
+           GDAL2AsciiGrid( wrpDS, bandNum, uGrid );
+-          if( CPLIsNan( dfNoData ) ) {
++          if( cplIsNan( dfNoData ) ) {
+               uGrid.set_noDataValue(-9999.0);
+               uGrid.replaceNan( -9999.0 );
+           }
+         }
+         else if( varList[i] == "Geopotential_height_cloud_tops" ) {
+           GDAL2AsciiGrid( wrpDS, bandNum, cloudGrid );
+-          if( CPLIsNan( dfNoData ) ) {
++          if( cplIsNan( dfNoData ) ) {
+               cloudGrid.set_noDataValue(-9999.0);
+               cloudGrid.replaceNan( -99999.0 );
+           }
+diff --git a/src/ninja/ncepRapSurfInitialization.h b/src/ninja/ncepRapSurfInitialization.h
+index f5009ec98dc7f33a696ea63b5bdaac75a557b26f..1b0e8a9722edf2e69b9dd5310f1be594059d2010 100644
+--- a/src/ninja/ncepRapSurfInitialization.h
++++ b/src/ninja/ncepRapSurfInitialization.h
+@@ -31,6 +31,7 @@
+ #define NCEP_RAP_SURFACE_INITIALIZATION_H
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ #include <cmath>
+ 
+ /**
+diff --git a/src/ninja/nomads_wx_init.cpp b/src/ninja/nomads_wx_init.cpp
+index 9763b09437f1fb1e56675a71078f87412640e22b..5228b7f67963acb3db0f124410d75d42480f66ad 100644
+--- a/src/ninja/nomads_wx_init.cpp
++++ b/src/ninja/nomads_wx_init.cpp
+@@ -678,7 +678,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+         if( EQUAL( pszElement, "TMP" ) )
+         {
+           GDAL2AsciiGrid( (GDALDataset*)hVrtDS, i + 1, airGrid );
+-          if( CPLIsNan( dfNoData ) )
++          if( cplIsNan( dfNoData ) )
+           {
+             airGrid.set_noDataValue( -9999.0 );
+             airGrid.replaceNan( -9999.0 );
+@@ -688,7 +688,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+         else if( EQUAL( pszElement, "UGRD" ) )
+         {
+           GDAL2AsciiGrid( (GDALDataset*)hVrtDS, i + 1, uGrid );
+-          if( CPLIsNan( dfNoData ) )
++          if( cplIsNan( dfNoData ) )
+           {
+             uGrid.set_noDataValue( -9999.0 );
+             uGrid.replaceNan( -9999.0 );
+@@ -697,7 +697,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+         else if( EQUAL( pszElement, "VGRD" ) )
+         {
+           GDAL2AsciiGrid( (GDALDataset*)hVrtDS, i + 1, vGrid );
+-          if( CPLIsNan( dfNoData ) )
++          if( cplIsNan( dfNoData ) )
+           {
+             vGrid.set_noDataValue( -9999.0 );
+             vGrid.replaceNan( -9999.0 );
+@@ -706,7 +706,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+         else if( EQUAL( pszElement, "TCDC" ) )
+         {
+           GDAL2AsciiGrid( (GDALDataset*)hVrtDS, i + 1, cloudGrid );
+-          if( CPLIsNan( dfNoData ) )
++          if( cplIsNan( dfNoData ) )
+           {
+             cloudGrid.set_noDataValue( -9999.0 );
+             cloudGrid.replaceNan( -9999.0 );
+@@ -723,7 +723,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+           }
+ 
+           GDAL2AsciiGrid( (GDALDataset*)hVrtDS, i + 1, airGrid );
+-          if( CPLIsNan( dfNoData ) )
++          if( cplIsNan( dfNoData ) )
+           {
+             airGrid.set_noDataValue( -9999.0 );
+             airGrid.replaceNan( -9999.0 );
+@@ -741,7 +741,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+           }
+ 
+           GDAL2AsciiGrid( (GDALDataset*)hVrtDS, i + 1, speedGrid );
+-          if( CPLIsNan( dfNoData ) )
++          if( cplIsNan( dfNoData ) )
+           {
+             speedGrid.set_noDataValue( -9999.0 );
+             speedGrid.replaceNan( -9999.0 );
+@@ -751,7 +751,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+         {
+           blendCheck = true;
+           GDAL2AsciiGrid( (GDALDataset*)hVrtDS, i + 1, directionGrid );
+-          if( CPLIsNan( dfNoData ) )
++          if( cplIsNan( dfNoData ) )
+           {
+             directionGrid.set_noDataValue( -9999.0 );
+             directionGrid.replaceNan( -9999.0 );
+@@ -830,7 +830,7 @@ void NomadsWxModel::setSurfaceGrids( WindNinjaInputs &input,
+             {
+                 dfNoData = -9999.0;
+             }
+-            if( CPLIsNan( dfNoData ) )
++            if( cplIsNan( dfNoData ) )
+             {
+                 cloudGrid.set_noDataValue( -9999.0 );
+                 cloudGrid.replaceNan( -9999.0 );
+@@ -1243,4 +1243,3 @@ void NomadsWxModel::set3dGrids( WindNinjaInputs &input, Mesh const& mesh )
+ #endif /* NOMADS_ENABLE_3D */
+     return;
+ }
+-
+diff --git a/src/ninja/nomads_wx_init.h b/src/ninja/nomads_wx_init.h
+index a8e1e0bde1ab84f5d4619e510becf71284ab6df2..41b42b59c35a72dc054acfa6108cdb969486b700 100644
+--- a/src/ninja/nomads_wx_init.h
++++ b/src/ninja/nomads_wx_init.h
+@@ -31,6 +31,7 @@
+ #define NOMADS_WX_MODEL_H_
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ #include "nomads.h"
+ 
+@@ -90,4 +91,3 @@ class NomadsWxModel : public wxModelInitialization
+ };
+ 
+ #endif /* NOMADS_WX_MODEL_H_ */
+-
+diff --git a/src/ninja/pointInitialization.cpp b/src/ninja/pointInitialization.cpp
+index 3610537bd299ed8df76d079310b55e5a6358f470..bddee39c4afa7aab57ef7917b33a60484c6dd2f8 100644
+--- a/src/ninja/pointInitialization.cpp
++++ b/src/ninja/pointInitialization.cpp
+@@ -1436,7 +1436,7 @@ double pointInitialization::interpolator(double iPoint, double lowX, double high
+     //MSVC 2010 is not c++11 compliant-> isnan doesn't work with MSVC2010
+     //changing to CPLISNan()
+ 
+-    if(CPLIsNan(result))
++    if(cplIsNan(result))
+     {
+         result = work;
+     }
+@@ -2249,8 +2249,8 @@ vector<double> pointInitialization::Irradiate(vector<string> solar_radiation, st
+         {
+             solFrac=one;
+         }
+-        //Note that CPLIsNan is required to compile on MSVC2010 c++11's isnan doesn't work
+-        if (CPLIsNan(solFrac))
++        //Note that cplIsNan is required to compile on MSVC2010 c++11's isnan doesn't work
++        if (cplIsNan(solFrac))
+         {
+             solFrac=one;
+         }
+@@ -3254,4 +3254,3 @@ bool pointInitialization::fetchStationData(string URL, string timeZone, bool lat
+         return true;
+     }
+ }
+-
+diff --git a/src/ninja/pointInitialization.h b/src/ninja/pointInitialization.h
+index 7c39d46d7ef209637d3f280659afac9419127325..06e95f3a96d2682b8b072b9d3504cca3a52f1e20 100644
+--- a/src/ninja/pointInitialization.h
++++ b/src/ninja/pointInitialization.h
+@@ -36,6 +36,7 @@
+ 
+ #include <limits>	//for large number
+ #include <math.h>
++#include "cplIsNan.h"
+ 
+ // shorten boost namespaces
+ namespace blt = boost::local_time;
+diff --git a/src/ninja/wrf3dInitialization.cpp b/src/ninja/wrf3dInitialization.cpp
+index 93831f823771b6b8de2a733bcfe1b3ebfa0d2a6a..b32be17de6eed6f05f914e45483bf285ea3797d3 100644
+--- a/src/ninja/wrf3dInitialization.cpp
++++ b/src/ninja/wrf3dInitialization.cpp
+@@ -412,7 +412,7 @@ void wrf3dInitialization::set3dGrids( WindNinjaInputs &input, Mesh const& mesh )
+         /*AsciiGrid<double> tempGrid;
+         AsciiGrid<double> temp2Grid;
+         GDAL2AsciiGrid( wrpDS, 12, tempGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+             tempGrid.set_noDataValue( -9999.0 );
+             tempGrid.replaceNan( -9999.0 );
+         }
+diff --git a/src/ninja/wrf3dInitialization.h b/src/ninja/wrf3dInitialization.h
+index 29a2d167a8998edfbb92435c5f6dda00411d48e1..4cc8e268b1374a77ff9ffe1bddacf6324214fc17 100644
+--- a/src/ninja/wrf3dInitialization.h
++++ b/src/ninja/wrf3dInitialization.h
+@@ -31,6 +31,7 @@
+ #define WRF_3D_SURFACE_INITIALIZATION_H
+ 
+ #include "wrfSurfInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from a WRF 3-D forecast file.
+diff --git a/src/ninja/wrfSurfInitialization.cpp b/src/ninja/wrfSurfInitialization.cpp
+index 5316ee18f3ce81bb0be8e50fdb98a1d9500dbd66..3d448302193324d3cbe0174e17a716e861f52722 100644
+--- a/src/ninja/wrfSurfInitialization.cpp
++++ b/src/ninja/wrfSurfInitialization.cpp
+@@ -182,7 +182,7 @@ void wrfSurfInitialization::checkForValidData()
+             else
+             {
+                 noDataValueExists = true;
+-                noDataIsNan = CPLIsNan(dfNoData);
++                noDataIsNan = cplIsNan(dfNoData);
+             }
+ 
+             //set the data
+@@ -196,7 +196,7 @@ void wrfSurfInitialization::checkForValidData()
+                 {
+                     if(noDataIsNan)
+                     {
+-                        if(CPLIsNan(padfScanline[k]))
++                        if(cplIsNan(padfScanline[k]))
+                             throw badForecastFile("Forecast file contains no_data values.");
+                     }else
+                     {
+@@ -743,7 +743,7 @@ void wrfSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+         
+         if( varList[i] == "U10" ) {
+             GDAL2AsciiGrid( wrpDS, 12, tempGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 tempGrid.set_noDataValue(-9999.0);
+                 tempGrid.replaceNan( -9999.0 );
+             }
+@@ -762,28 +762,28 @@ void wrfSurfInitialization::setSurfaceGrids( WindNinjaInputs &input,
+ 
+         if( varList[i] == "T2" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, airGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         airGrid.set_noDataValue(-9999.0);
+         airGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "V10" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, vGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         vGrid.set_noDataValue(-9999.0);
+         vGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "U10" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, uGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         uGrid.set_noDataValue(-9999.0);
+         uGrid.replaceNan( -9999.0 );
+         }
+     }
+         else if( varList[i] == "QCLOUD" ) {
+             GDAL2AsciiGrid( wrpDS, bandNum, cloudGrid );
+-        if( CPLIsNan( dfNoData ) ) {
++        if( cplIsNan( dfNoData ) ) {
+         cloudGrid.set_noDataValue(-9999.0);
+         cloudGrid.replaceNan( -9999.0 );
+         }
+@@ -854,4 +854,3 @@ double wrfSurfInitialization::Get_Wind_Height()
+     return 10.0;
+ }
+ 
+-
+diff --git a/src/ninja/wrfSurfInitialization.h b/src/ninja/wrfSurfInitialization.h
+index 4744be7d59cb836f75f923fce01dade71c534701..e62fdd798fb924d9ba9f1ca267a04b3b719449cc 100644
+--- a/src/ninja/wrfSurfInitialization.h
++++ b/src/ninja/wrfSurfInitialization.h
+@@ -31,6 +31,7 @@
+ #define WRF_SURFACE_INITIALIZATION_H
+ 
+ #include "wxModelInitialization.h"
++#include "cplIsNan.h"
+ 
+ /**
+  * Class to initialize a WindNinja run from a WRF Surface forecast file.
+@@ -67,4 +68,3 @@ class wrfSurfInitialization : public wxModelInitialization
+ };
+ 
+ #endif //WRF_SURFACE_INIITALIZATION_H
+-
+diff --git a/src/ninja/wxStation.cpp b/src/ninja/wxStation.cpp
+index 0d6184505fa84952a394bd70bb1eadd9ba0d207b..499a36ef90b2294045ea1b16ca1417ea58b0243f 100644
+--- a/src/ninja/wxStation.cpp
++++ b/src/ninja/wxStation.cpp
+@@ -577,32 +577,32 @@ bool wxStation::check_station(wxStation station)
+ 
+     for (int i=0;i<station.heightList.size();i++)
+     {        
+-        //Changing all isnan() to CPLIsNan() for MSVC2010
+-        if(station.heightList[i] < 0.0|| CPLIsNan(station.heightList[i]))
++        //Changing all isnan() to cplIsNan() for MSVC2010
++        if(station.heightList[i] < 0.0|| cplIsNan(station.heightList[i]))
+         {
+             cout<<"failed height Check on "<<i<<endl;
+             cout<<station.heightList[i]<<endl;
+             return false;
+         }
+-        if(station.speedList[i] < 0.0 || CPLIsNan(station.speedList[i]) || station.speedList[i]>105.0)
++        if(station.speedList[i] < 0.0 || cplIsNan(station.speedList[i]) || station.speedList[i]>105.0)
+         {
+             cout<<"failed speed Check on "<<i<<endl;
+             cout<<station.speedList[i]<<endl;
+             return false;
+         }
+-        if(station.directionList[i] < 0.0 || station.directionList[i] > 360.0 || CPLIsNan(station.directionList[i]))
++        if(station.directionList[i] < 0.0 || station.directionList[i] > 360.0 || cplIsNan(station.directionList[i]))
+         {
+             cout<<"failed direction Check on "<<i<<endl;
+             cout<<station.directionList[i]<<endl;
+             return false;
+         }
+-        if(station.temperatureList[i]< 173.15 || station.temperatureList[i] > 330.00 || CPLIsNan(station.temperatureList[i]))
++        if(station.temperatureList[i]< 173.15 || station.temperatureList[i] > 330.00 || cplIsNan(station.temperatureList[i]))
+         {
+             cout<<"failed temperature Check on "<<i<<endl;
+             cout<<station.temperatureList[i]<<endl;
+             return false;
+         }
+-        if(station.cloudCoverList[i]<0.0||station.cloudCoverList[i]>1.10 || CPLIsNan(station.cloudCoverList[i]))
++        if(station.cloudCoverList[i]<0.0||station.cloudCoverList[i]>1.10 || cplIsNan(station.cloudCoverList[i]))
+         {
+             cout<<"failed cloud check on "<<i<<endl;
+             cout<<station.cloudCoverList[i]<<endl;
+@@ -611,7 +611,7 @@ bool wxStation::check_station(wxStation station)
+         }
+     }
+ 
+-    if(station.w_speed < 0.0 || CPLIsNan(station.w_speed))
++    if(station.w_speed < 0.0 || cplIsNan(station.w_speed))
+     {
+         cout<<"failed vert_speed Check"<<endl;
+         return false;
+@@ -1050,4 +1050,3 @@ void wxStation::writeKMZFile(std::vector<wxStation> stations, string basePath, s
+ 
+ 
+ }
+-
+diff --git a/src/ninja/wxStation.h b/src/ninja/wxStation.h
+index 670416949e02bc12e3cfb8a2ee30d32fbf406614..e3b6e2a1926cb139414e68bf4790757d45c0f502 100644
+--- a/src/ninja/wxStation.h
++++ b/src/ninja/wxStation.h
+@@ -59,6 +59,7 @@
+ #include "iostream"
+ #include "numeric"
+ #include "math.h"
++#include "cplIsNan.h"
+ 
+ static const char *apszValidHeader1[] = {
+     "Station_Name", "Coord_Sys(PROJCS,GEOGCS)", "Datum(WGS84,NAD83,NAD27)",
+diff --git a/src/wrf_to_kmz/wrf_to_kmz.cpp b/src/wrf_to_kmz/wrf_to_kmz.cpp
+index 9d684ec77ba1d47b50341504279da9a5e1cfc400..473f00b2dc0e3a594a27a8bb1ecd48b4a9537fee 100644
+--- a/src/wrf_to_kmz/wrf_to_kmz.cpp
++++ b/src/wrf_to_kmz/wrf_to_kmz.cpp
+@@ -37,6 +37,7 @@
+ 
+ #include "ninjaUnits.h"
+ #include "KmlVector.h"
++#include "cplIsNan.h"
+ 
+ 
+ /**
+@@ -239,7 +240,7 @@ void checkForValidData( std::string wxModelFileName )
+             else
+             {
+                 noDataValueExists = true;
+-                noDataIsNan = CPLIsNan(dfNoData);
++                noDataIsNan = cplIsNan(dfNoData);
+             }
+ 
+             const char * poBand_units = poBand->GetUnitType();
+@@ -264,7 +265,7 @@ void checkForValidData( std::string wxModelFileName )
+                 {
+                     if(noDataIsNan)
+                     {
+-                        if(CPLIsNan(current_val))
++                        if(cplIsNan(current_val))
+                             throw badForecastFile("Forecast file contains no_data values.");
+                     }else
+                     {
+@@ -855,7 +856,7 @@ void setSurfaceGrids( const std::string &wxModelFileName, const int &timeBandIdx
+         if( varList[i] == "T2" ) {
+             GDAL2AsciiGrid( srcDS, bandNum, airGrid );
+             temperatureUnits::toBaseUnits( airGrid, T_units );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 airGrid.set_noDataValue(-9999.0);
+                 airGrid.replaceNan( -9999.0 );
+             }
+@@ -863,7 +864,7 @@ void setSurfaceGrids( const std::string &wxModelFileName, const int &timeBandIdx
+         else if( varList[i] == "V10" ) {
+             GDAL2AsciiGrid( srcDS, bandNum, vGrid );
+             velocityUnits::toBaseUnits( vGrid, spd_units );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 vGrid.set_noDataValue(-9999.0);
+                 vGrid.replaceNan( -9999.0 );
+             }
+@@ -871,14 +872,14 @@ void setSurfaceGrids( const std::string &wxModelFileName, const int &timeBandIdx
+         else if( varList[i] == "U10" ) {
+             GDAL2AsciiGrid( srcDS, bandNum, uGrid );
+             velocityUnits::toBaseUnits( uGrid, spd_units );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 uGrid.set_noDataValue(-9999.0);
+                 uGrid.replaceNan( -9999.0 );
+             }
+         }
+         else if( varList[i] == "QCLOUD" ) {
+             GDAL2AsciiGrid( srcDS, bandNum, cloudGrid );
+-            if( CPLIsNan( dfNoData ) ) {
++            if( cplIsNan( dfNoData ) ) {
+                 cloudGrid.set_noDataValue(-9999.0);
+                 cloudGrid.replaceNan( -9999.0 );
+             }
