@@ -1,5 +1,5 @@
 {% set name = "windninja" %}
-{% set version = "3.13.0.0" %}
+{% set version = "3.13.0.1" %}
 
 package:
   name: {{ name|lower }}
@@ -7,7 +7,7 @@ package:
 
 source:
   url: https://github.com/firelab/windninja/archive/refs/tags/{{ version }}.tar.gz
-  sha256: f71e1d35012200115ff2012a513ab41a46f263e58684253c11ac532d6746f493
+  sha256: 42372e3bb653a9e2194d78cc2c868208a9e7a6df44d2d51b6f0bbc5f121ecb5b
 
 build:
   number: 0
