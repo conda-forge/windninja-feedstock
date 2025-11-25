@@ -17,6 +17,6 @@ libboost_devel:
 libgdal:
 - '3.11'
 libnetcdf:
-- 4.9.2
+- 4.9.3
 target_platform:
 - linux-64

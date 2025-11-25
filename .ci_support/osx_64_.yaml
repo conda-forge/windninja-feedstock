@@ -19,7 +19,7 @@ libboost_devel:
 libgdal:
 - '3.11'
 libnetcdf:
-- 4.9.2
+- 4.9.3
 macos_machine:
 - x86_64-apple-darwin13.4.0
 target_platform:
