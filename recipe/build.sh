@@ -1,6 +1,12 @@
 mkdir build
 cd build
 
+if [[ "$target_platform" == linux-* ]]; then
+    BUILD_NINJAFOAM=True
+else
+    BUILD_NINJAFOAM=False
+fi
+
 cmake ${CMAKE_ARGS} \
   -DCMAKE_PREFIX_PATH:PATH=${PREFIX} \
   -DCMAKE_INSTALL_PREFIX:PATH=${PREFIX} \
@@ -8,7 +14,7 @@ cmake ${CMAKE_ARGS} \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
   -DNINJA_QTGUI=False \
-  -DNINJAFOAM=False \
+  -DNINJAFOAM=${BUILD_NINJAFOAM} \
   -DCMAKE_CXX_STANDARD=11 \
   -DOPENMP_SUPPORT=True \
   -DBUILD_FETCH_DEM=False \
