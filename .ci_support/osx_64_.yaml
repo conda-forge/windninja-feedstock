@@ -17,9 +17,11 @@ cxx_compiler_version:
 libboost_devel:
 - '1.88'
 libgdal:
-- '3.11'
+- '3.12'
 libnetcdf:
 - 4.9.3
+llvm_openmp:
+- '19'
 macos_machine:
 - x86_64-apple-darwin13.4.0
 target_platform:
