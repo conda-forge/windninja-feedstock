@@ -1,11 +1,11 @@
 MACOSX_DEPLOYMENT_TARGET:
-- '10.13'
+- '11.0'
 MACOSX_SDK_VERSION:
-- '10.13'
+- '11.0'
 c_stdlib:
 - macosx_deployment_target
 c_stdlib_version:
-- '10.13'
+- '11.0'
 channel_sources:
 - conda-forge
 channel_targets:
@@ -17,9 +17,11 @@ cxx_compiler_version:
 libboost_devel:
 - '1.88'
 libgdal:
-- '3.11'
+- '3.12'
 libnetcdf:
-- 4.9.3
+- 4.10.0
+llvm_openmp:
+- '19'
 macos_machine:
 - x86_64-apple-darwin13.4.0
 target_platform:

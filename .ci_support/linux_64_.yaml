@@ -15,8 +15,8 @@ docker_image:
 libboost_devel:
 - '1.88'
 libgdal:
-- '3.11'
+- '3.12'
 libnetcdf:
-- 4.9.3
+- 4.10.0
 target_platform:
 - linux-64
