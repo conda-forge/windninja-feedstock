@@ -175,5 +175,6 @@ Feedstock Maintainers
 =====================
 
 * [@Chrismarsh](https://github.com/Chrismarsh/)
+* [@jomey](https://github.com/jomey/)
 * [@nwagenbrenner](https://github.com/nwagenbrenner/)
 
